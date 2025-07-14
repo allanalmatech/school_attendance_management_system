@@ -121,31 +121,50 @@ function handleResponse(result) {
 
 function showLoading() {
     const overlay = document.getElementById('loadingOverlay');
-    overlay.classList.add('show');
+    if (overlay) {
+        overlay.classList.add('show');
+    }
 }
 
 function hideLoading() {
     const overlay = document.getElementById('loadingOverlay');
-    overlay.classList.remove('show');
+    if (overlay) {
+        overlay.classList.remove('show');
+    }
 }
 
 function showSuccess(message) {
     showMessage('success', message);
-}
-
-function showError(message) {
-    showMessage('danger', message);
-}
-
-function showMessage(type, message) {
-    const modal = new bootstrap.Modal(document.getElementById('messageModal'));
-    const title = document.getElementById('messageModalTitle');
-    const body = document.getElementById('messageModalBody');
     
-    title.textContent = type === 'success' ? 'Success' : 'Error';
-    body.textContent = message;
+    const toast = document.createElement('div');
+    toast.className = `toast fade ${type === 'success' ? 'bg-success' : 'bg-danger'} text-white`;
+    toast.role = 'alert';
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
     
-    modal.show();
+    toast.innerHTML = `
+        <div class="toast-header ${type === 'success' ? 'bg-success' : 'bg-danger'} text-white">
+            <strong class="me-auto">${type === 'success' ? 'Success' : 'Error'}</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            ${message}
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    document.body.appendChild(toastContainer);
+    
+    const bsToast = new bootstrap.Toast(toast, {
+        autohide: true,
+        delay: 3000
+    });
+    
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toastContainer.remove();
+    });
 }
 
 function updateTable(table) {

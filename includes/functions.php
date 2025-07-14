@@ -92,7 +92,10 @@ function hashPassword($password) {
 }
 
 function sanitizeInput($input) {
-    return htmlspecialchars(trim($input));
+    if ($input === null) {
+        return '';
+    }
+    return trim(htmlspecialchars(strip_tags($input)));
 }
 
 function generateUniqueCode($length = 6) {

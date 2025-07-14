@@ -30,7 +30,7 @@ switch ($_GET['action'] ?? '') {
         // Get students enrolled in the course's program
         $students = $pdo->query("
             SELECT s.*, p.Programme_name
-            FROM student s
+            FROM students s
             JOIN student_has_programs shp ON s.ID = shp.student_id
             JOIN programs p ON shp.program_id = p.program_id
             JOIN programs_has_courses pc ON p.program_id = pc.program_id

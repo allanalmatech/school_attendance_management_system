@@ -10,8 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($_POST['action']) {
             case 'add':
                 $data = [
-                    'Programme_name' => sanitizeInput($_POST['Programme_name']),
-                    'duration_years' => intval($_POST['duration_years']),
+                    'program_code' => sanitizeInput($_POST['program_code']),
+                    'program_name' => sanitizeInput($_POST['program_name']),
                     'description' => sanitizeInput($_POST['description'])
                 ];
                 if (insertData('programs', $data)) {
@@ -23,8 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             case 'edit':
                 $data = [
-                    'Programme_name' => sanitizeInput($_POST['Programme_name']),
-                    'duration_years' => intval($_POST['duration_years']),
+                    'program_code' => sanitizeInput($_POST['program_code']),
+                    'program_name' => sanitizeInput($_POST['program_name']),
                     'description' => sanitizeInput($_POST['description'])
                 ];
                 $where = "program_id = " . intval($_POST['program_id']);
@@ -54,8 +54,8 @@ $programs = getTableData('programs');
 $search = $_GET['search'] ?? '';
 if ($search) {
     $programs = getTableData('programs', '*', 
-        "Programme_name LIKE '%$search%' OR description LIKE '%$search%'", 
-        'Programme_name ASC');
+        "program_name LIKE '%$search%' OR description LIKE '%$search%'", 
+        'program_name ASC');
 }
 
 // Pagination
@@ -65,7 +65,7 @@ $offset = ($page - 1) * $limit;
 $totalPrograms = count(getTableData('programs'));
 $totalPages = ceil($totalPrograms / $limit);
 
-$programs = getTableData('programs', '*', null, 'Programme_name ASC LIMIT ' . $offset . ', ' . $limit);
+$programs = getTableData('programs', '*', null, 'program_name ASC LIMIT ' . $offset . ', ' . $limit);
 ?>
 
 <div class="container mt-4">
@@ -103,8 +103,8 @@ $programs = getTableData('programs', '*', null, 'Programme_name ASC LIMIT ' . $o
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>Program Code</th>
                             <th>Program Name</th>
-                            <th>Duration (Years)</th>
                             <th>Description</th>
                             <th>Actions</th>
                         </tr>
@@ -113,14 +113,14 @@ $programs = getTableData('programs', '*', null, 'Programme_name ASC LIMIT ' . $o
                         <?php foreach ($programs as $program): ?>
                             <tr>
                                 <td><?php echo $program['program_id']; ?></td>
-                                <td><?php echo htmlspecialchars($program['Programme_name']); ?></td>
-                                <td><?php echo $program['duration_years']; ?></td>
+                                <td><?php echo htmlspecialchars($program['program_code'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($program['program_name']); ?></td>
                                 <td><?php echo htmlspecialchars($program['description']); ?></td>
                                 <td>
                                     <button class="btn btn-sm btn-primary edit-program" 
                                         data-id="<?php echo $program['program_id']; ?>"
-                                        data-name="<?php echo htmlspecialchars($program['Programme_name']); ?>"
-                                        data-duration="<?php echo $program['duration_years']; ?>"
+                                        data-code="<?php echo htmlspecialchars($program['program_code'] ?? ''); ?>"
+                                        data-name="<?php echo htmlspecialchars($program['program_name']); ?>"
                                         data-description="<?php echo htmlspecialchars($program['description']); ?>"
                                         data-bs-toggle="modal" 
                                         data-bs-target="#editProgramModal">
@@ -171,7 +171,7 @@ $programs = getTableData('programs', '*', null, 'Programme_name ASC LIMIT ' . $o
 <div class="modal fade" id="addProgramModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="" data-ajax>
+            <form method="POST" action="" data-ajax="true" id="programForm">
                 <div class="modal-header">
                     <h5 class="modal-title">Add New Program</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -179,12 +179,12 @@ $programs = getTableData('programs', '*', null, 'Programme_name ASC LIMIT ' . $o
                 <div class="modal-body">
                     <input type="hidden" name="action" value="add">
                     <div class="mb-3">
-                        <label for="Programme_name" class="form-label">Program Name</label>
-                        <input type="text" class="form-control" id="Programme_name" name="Programme_name" required>
+                        <label for="program_code" class="form-label">Program Code</label>
+                        <input type="text" class="form-control" id="program_code" name="program_code" required>
                     </div>
                     <div class="mb-3">
-                        <label for="duration_years" class="form-label">Duration (Years)</label>
-                        <input type="number" class="form-control" id="duration_years" name="duration_years" min="1" required>
+                        <label for="program_name" class="form-label">Program Name</label>
+                        <input type="text" class="form-control" id="program_name" name="program_name" required>
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
@@ -193,7 +193,7 @@ $programs = getTableData('programs', '*', null, 'Programme_name ASC LIMIT ' . $o
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Add Program</button>
+                    <button type="submit" class="btn btn-primary" id="submitProgram">Add Program</button>
                 </div>
             </form>
         </div>
@@ -201,10 +201,139 @@ $programs = getTableData('programs', '*', null, 'Programme_name ASC LIMIT ' . $o
 </div>
 
 <!-- Edit Program Modal -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap modal
+    const addModal = new bootstrap.Modal(document.getElementById('addProgramModal'));
+    const editModal = new bootstrap.Modal(document.getElementById('editProgramModal'));
+
+    // Handle form submissions
+    document.getElementById('programForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const action = formData.get('action');
+        
+        // Ensure program_code is included
+        if (!formData.has('program_code')) {
+            formData.append('program_code', '');
+        }
+
+        // Show loading overlay
+        showLoading();
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message);
+                updateTable();
+                // Close the appropriate modal
+                const currentModal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
+                if (currentModal) {
+                    currentModal.hide();
+                }
+            } else {
+                showToast(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showToast('An error occurred while ' + (action === 'add' ? 'adding' : 'updating') + ' the program.', 'error');
+        })
+        .finally(() => {
+            // Hide loading overlay
+            hideLoading();
+        });
+    });
+    // Handle form submissions
+    document.querySelectorAll('form[data-ajax]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const action = formData.get('action');
+            
+            // Add program_code field if it's missing
+            if (!formData.has('program_code')) {
+                formData.append('program_code', '');
+            }
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Program ' + (action === 'add' ? 'added' : 'updated') + ' successfully!');
+                    updateTable();
+                    const modal = bootstrap.Modal.getInstance(this.closest('.modal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred while ' + (action === 'add' ? 'adding' : 'updating') + ' the program.', 'error');
+            });
+        });
+    });
+
+    // Handle edit button click
+    document.querySelectorAll('.edit-program').forEach(button => {
+        button.addEventListener('click', function() {
+            const programId = this.dataset.id;
+            const programCode = this.dataset.code;
+            const programName = this.dataset.name;
+            const description = this.dataset.description;
+            
+            document.getElementById('program_id').value = programId;
+            document.getElementById('edit_program_code').value = programCode;
+            document.getElementById('edit_program_name').value = programName;
+            document.getElementById('edit_description').value = description;
+        });
+    });
+
+    // Handle delete button click
+    document.querySelectorAll('.delete-program').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const programId = this.dataset.id;
+            
+            if (confirm('Are you sure you want to delete this program?')) {
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        action: 'delete',
+                        program_id: programId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Program deleted successfully!');
+                        updateTable();
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('An error occurred while deleting the program.', 'error');
+                });
+            }
+        });
+    });
+});
+</script>
 <div class="modal fade" id="editProgramModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="" data-ajax>
+            <form method="POST" action="" data-ajax="true" id="programForm">
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Program</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -213,23 +342,25 @@ $programs = getTableData('programs', '*', null, 'Programme_name ASC LIMIT ' . $o
                     <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="program_id" id="program_id">
                     <div class="mb-3">
-                        <label for="Programme_name" class="form-label">Program Name</label>
-                        <input type="text" class="form-control" id="Programme_name" name="Programme_name" required>
+                        <label for="edit_program_code" class="form-label">Program Code</label>
+                        <input type="text" class="form-control" id="edit_program_code" name="program_code" required>
                     </div>
                     <div class="mb-3">
-                        <label for="duration_years" class="form-label">Duration (Years)</label>
-                        <input type="number" class="form-control" id="duration_years" name="duration_years" min="1" required>
+                        <label for="edit_program_name" class="form-label">Program Name</label>
+                        <input type="text" class="form-control" id="edit_program_name" name="program_name" required>
                     </div>
                     <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        <label for="editDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" name="description" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Update Program</button>
+                    <button type="submit" class="btn btn-primary" id="submitProgram">Update Program</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<?php require_once 'includes/footer.php'; ?>

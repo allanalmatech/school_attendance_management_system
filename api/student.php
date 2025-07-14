@@ -83,12 +83,16 @@ $semester = $stmt->fetch();
         
         // Insert student record
         $stmt = $pdo->prepare("INSERT INTO students 
-            (Student_name, Email, Phone, Program_id, Semester_id, Registration_number) 
-            VALUES (?, ?, ?, ?, ?, ?)");
+            (first_name, last_name, date_of_birth, gender, phone, email, 
+            program_id, semester_id, registration_number) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $success = $stmt->execute([
-            $data['Student_name'],
-            $data['Email'],
+            $data['first_name'],
+            $data['last_name'],
+            $data['date_of_birth'],
+            $data['gender'],
             $data['Phone'],
+            $data['Email'],
             $data['Program_id'],
             $data['Semester_id'],
             $data['Registration_number']
@@ -119,7 +123,9 @@ $semester = $stmt->fetch();
         }
         
         // Check if student exists
-        $student = $pdo->query("SELECT * FROM students WHERE student_id = $studentId")->fetch();
+        $stmt = $pdo->prepare("SELECT * FROM students WHERE student_id = ?");
+        $stmt->execute([$studentId]);
+        $student = $stmt->fetch();
         if (!$student) {
             echo generateResponse(false, 'Student not found');
             exit();
@@ -204,7 +210,9 @@ $semester = $stmt->fetch();
         }
         
         // Check if student exists
-        $student = $pdo->query("SELECT * FROM students WHERE student_id = $studentId")->fetch();
+        $stmt = $pdo->prepare("SELECT * FROM students WHERE student_id = ?");
+        $stmt->execute([$studentId]);
+        $student = $stmt->fetch();
         if (!$student) {
             echo generateResponse(false, 'Student not found');
             exit();

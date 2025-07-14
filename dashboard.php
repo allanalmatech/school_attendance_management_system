@@ -11,11 +11,11 @@ $stats = [];
 switch ($role) {
     case 'admin':
         $stats = [
-            'total_students' => count(getTableData('student')),
+            'total_students' => count(getTableData('students')),
             'total_faculty' => count(getTableData('faculty')),
             'total_programs' => count(getTableData('programs')),
             'total_courses' => count(getTableData('courses')),
-            'total_semesters' => count(getTableData('semester'))
+            'total_semesters' => count(getTableData('semesters'))
         ];
         break;
     case 'faculty':

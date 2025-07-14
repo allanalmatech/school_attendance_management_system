@@ -56,8 +56,8 @@ $faculty = getTableData('faculty');
 $search = $_GET['search'] ?? '';
 if ($search) {
     $faculty = getTableData('faculty', '*', 
-        "Faculty_name LIKE '%$search%' OR email LIKE '%$search%'", 
-        'Faculty_name ASC');
+        "first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR email LIKE '%$search%' OR department LIKE '%$search%'", 
+        'first_name ASC, last_name ASC');
 }
 
 // Pagination
@@ -67,7 +67,7 @@ $offset = ($page - 1) * $limit;
 $totalFaculty = count(getTableData('faculty'));
 $totalPages = ceil($totalFaculty / $limit);
 
-$faculty = getTableData('faculty', '*', null, 'Faculty_name ASC LIMIT ' . $offset . ', ' . $limit);
+$faculty = getTableData('faculty', '*', null, 'first_name ASC, last_name ASC LIMIT ' . $offset . ', ' . $limit);
 ?>
 
 <div class="container mt-4">
@@ -116,14 +116,15 @@ $faculty = getTableData('faculty', '*', null, 'Faculty_name ASC LIMIT ' . $offse
                         <?php foreach ($faculty as $member): ?>
                             <tr>
                                 <td><?php echo $member['faculty_id']; ?></td>
-                                <td><?php echo htmlspecialchars($member['Faculty_name']); ?></td>
+                                <td><?php echo htmlspecialchars($member['first_name'] . ' ' . $member['last_name']); ?></td>
                                 <td><?php echo htmlspecialchars($member['email']); ?></td>
                                 <td><?php echo htmlspecialchars($member['phone']); ?></td>
                                 <td><?php echo htmlspecialchars($member['department']); ?></td>
                                 <td>
                                     <button class="btn btn-sm btn-primary edit-faculty" 
                                         data-id="<?php echo $member['faculty_id']; ?>"
-                                        data-name="<?php echo htmlspecialchars($member['Faculty_name']); ?>"
+                                        data-first-name="<?php echo htmlspecialchars($member['first_name']); ?>"
+                        data-last-name="<?php echo htmlspecialchars($member['last_name']); ?>"
                                         data-email="<?php echo htmlspecialchars($member['email']); ?>"
                                         data-phone="<?php echo htmlspecialchars($member['phone']); ?>"
                                         data-department="<?php echo htmlspecialchars($member['department']); ?>"
@@ -184,8 +185,12 @@ $faculty = getTableData('faculty', '*', null, 'Faculty_name ASC LIMIT ' . $offse
                 <div class="modal-body">
                     <input type="hidden" name="action" value="add">
                     <div class="mb-3">
-                        <label for="Faculty_name" class="form-label">Faculty Name</label>
-                        <input type="text" class="form-control" id="Faculty_name" name="Faculty_name" required>
+                        <label for="first_name" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" required>
+                        <div class="mb-3">
+                            <label for="last_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" required>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
@@ -218,4 +223,37 @@ $faculty = getTableData('faculty', '*', null, 'Faculty_name ASC LIMIT ' . $offse
                     <h5 class="modal-title">Edit Faculty Member</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body"></div>
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="faculty_id" id="faculty_id">
+                    <div class="mb-3">
+                        <label for="edit_first_name" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_last_name" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="edit_email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_phone" class="form-label">Phone</label>
+                        <input type="tel" class="form-control" id="edit_phone" name="phone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_department" class="form-label">Department</label>
+                        <input type="text" class="form-control" id="edit_department" name="department" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Update Faculty</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php require_once 'includes/footer.php'; ?>

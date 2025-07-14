@@ -5,30 +5,18 @@ require_once __DIR__ . '/includes/config.php';
 // Get database connection
 $pdo = getDBConnection();
 
-// Debug database connection
+// Check database connection and users table
 try {
-    // Test connection
     $stmt = $pdo->query("SELECT 1");
-    $result = $stmt->fetch();
-    if ($result) {
-        echo "<div class='alert alert-success'>Database connection successful!</div>";
-    }
-} catch (PDOException $e) {
-    echo "<div class='alert alert-danger'>Database connection failed: " . $e->getMessage() . "</div>";
-    exit();
-}
-
-// Debug table existence
-try {
+    $stmt->fetch();
     $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
     $table_exists = $stmt->fetch();
     if (!$table_exists) {
-        echo "<div class='alert alert-danger'>Users table does not exist!</div>";
-        exit();
+        throw new Exception("Users table does not exist!");
     }
 } catch (PDOException $e) {
-    echo "<div class='alert alert-danger'>Error checking table: " . $e->getMessage() . "</div>";
-    exit();
+    error_log("Database error: " . $e->getMessage());
+    exit("Database error. Please check the logs.");
 }
 
 // Default accounts data
@@ -77,8 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_accounts'])) {
         }
         
         $sql = file_get_contents($sql_file);
-        error_log("Executing SQL from file:");
-        error_log($sql);
+
         
         // Execute SQL
         $pdo->exec($sql);
@@ -90,11 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_accounts'])) {
         $error = 'Error creating accounts: ' . $e->getMessage();
         error_log($error);
         
-        // Show detailed error message
-        echo "<div class='alert alert-danger'>Error: " . $e->getMessage() . 
-             "<br>SQL State: " . $e->getCode() . 
-             "<br>Details: " . print_r($pdo->errorInfo(), true) . 
-             "</div>";
+        error_log("Error creating accounts: " . $e->getMessage());
     }
 }
 
@@ -106,12 +89,7 @@ try {
     $stmt->execute();
     $existing_accounts = $stmt->fetchAll();
     
-    // Debug existing accounts
-    if (empty($existing_accounts)) {
-        echo "<div class='alert alert-info'>No accounts found in database.</div>";
-    } else {
-        echo "<div class='alert alert-info'>Found " . count($existing_accounts) . " accounts in database.</div>";
-    }
+
 } catch (PDOException $e) {
     $error = 'Error fetching existing accounts: ' . $e->getMessage();
     error_log($error);

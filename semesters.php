@@ -10,12 +10,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($_POST['action']) {
             case 'add':
                 $data = [
-                    'semester_name' => sanitizeInput($_POST['semester_name']),
-                    'start_date' => sanitizeInput($_POST['start_date']),
-                    'end_date' => sanitizeInput($_POST['end_date']),
-                    'status' => intval($_POST['status'])
+                    'semester_name' => sanitizeInput($_POST['semester_name'] ?? ''),
+                    'academic_year' => sanitizeInput($_POST['academic_year'] ?? ''),
+                    'start_date' => sanitizeInput($_POST['start_date'] ?? ''),
+                    'end_date' => sanitizeInput($_POST['end_date'] ?? '')
                 ];
-                if (insertData('semester', $data)) {
+                if (insertData('semesters', $data)) {
                     echo generateResponse(true, 'Semester added successfully');
                 } else {
                     echo generateResponse(false, 'Error adding semester');
@@ -24,13 +24,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             case 'edit':
                 $data = [
-                    'semester_name' => sanitizeInput($_POST['semester_name']),
-                    'start_date' => sanitizeInput($_POST['start_date']),
-                    'end_date' => sanitizeInput($_POST['end_date']),
-                    'status' => intval($_POST['status'])
+                    'semester_name' => sanitizeInput($_POST['semester_name'] ?? ''),
+                    'academic_year' => sanitizeInput($_POST['academic_year'] ?? ''),
+                    'start_date' => sanitizeInput($_POST['start_date'] ?? ''),
+                    'end_date' => sanitizeInput($_POST['end_date'] ?? '')
                 ];
                 $where = "semester_id = " . intval($_POST['semester_id']);
-                if (updateData('semester', $data, $where)) {
+                if (updateData('semesters', $data, $where)) {
                     echo generateResponse(true, 'Semester updated successfully');
                 } else {
                     echo generateResponse(false, 'Error updating semester');
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             case 'delete':
                 $where = "semester_id = " . intval($_POST['semester_id']);
-                if (deleteData('semester', $where)) {
+                if (deleteData('semesters', $where)) {
                     echo generateResponse(true, 'Semester deleted successfully');
                 } else {
                     echo generateResponse(false, 'Error deleting semester');
@@ -50,13 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get all semesters
-$semesters = getTableData('semester');
+$semesters = getTableData('semesters');
 
 // Search functionality
 $search = $_GET['search'] ?? '';
 if ($search) {
-    $semesters = getTableData('semester', '*', 
-        "semester_name LIKE '%$search%' OR status LIKE '%$search%'", 
+    $semesters = getTableData('semesters', '*', 
+        "semester_name LIKE '%$search%' OR academic_year LIKE '%$search%'", 
         'semester_name ASC');
 }
 
@@ -64,10 +64,10 @@ if ($search) {
 $limit = 10;
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $offset = ($page - 1) * $limit;
-$totalSemesters = count(getTableData('semester'));
+$totalSemesters = count(getTableData('semesters'));
 $totalPages = ceil($totalSemesters / $limit);
 
-$semesters = getTableData('semester', '*', null, 'semester_name ASC LIMIT ' . $offset . ', ' . $limit);
+$semesters = getTableData('semesters', '*', null, 'semester_name ASC LIMIT ' . $offset . ', ' . $limit);
 ?>
 
 <div class="container mt-4">
@@ -120,8 +120,8 @@ $semesters = getTableData('semester', '*', null, 'semester_name ASC LIMIT ' . $o
                                 <td><?php echo htmlspecialchars($semester['start_date']); ?></td>
                                 <td><?php echo htmlspecialchars($semester['end_date']); ?></td>
                                 <td>
-                                    <span class="badge bg-<?php echo $semester['status'] == 1 ? 'success' : 'warning'; ?>">
-                                        <?php echo $semester['status'] == 1 ? 'Active' : 'Inactive'; ?>
+                                    <span class="badge bg-success">
+                                        Active
                                     </span>
                                 </td>
                                 <td>
@@ -130,7 +130,6 @@ $semesters = getTableData('semester', '*', null, 'semester_name ASC LIMIT ' . $o
                                         data-name="<?php echo htmlspecialchars($semester['semester_name']); ?>"
                                         data-start="<?php echo htmlspecialchars($semester['start_date']); ?>"
                                         data-end="<?php echo htmlspecialchars($semester['end_date']); ?>"
-                                        data-status="<?php echo $semester['status']; ?>"
                                         data-bs-toggle="modal" 
                                         data-bs-target="#editSemesterModal">
                                         <i class="fas fa-edit"></i>
@@ -177,6 +176,84 @@ $semesters = getTableData('semester', '*', null, 'semester_name ASC LIMIT ' . $o
 </div>
 
 <!-- Add Semester Modal -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle edit button click
+    document.querySelectorAll('.edit-semester').forEach(button => {
+        button.addEventListener('click', function() {
+            const semesterId = this.dataset.id;
+            const semesterName = this.dataset.name;
+            const startDate = this.dataset.start;
+            const endDate = this.dataset.end;
+            
+            document.getElementById('semester_id').value = semesterId;
+            document.getElementById('edit_semester_name').value = semesterName;
+            document.getElementById('edit_start_date').value = startDate;
+            document.getElementById('edit_end_date').value = endDate;
+        });
+    });
+
+    // Handle delete button click
+    document.querySelectorAll('.delete-semester').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const semesterId = this.dataset.id;
+            
+            if (confirm('Are you sure you want to delete this semester?')) {
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        action: 'delete',
+                        semester_id: semesterId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Semester deleted successfully!');
+                        updateTable();
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('An error occurred while deleting the semester.', 'error');
+                });
+            }
+        });
+    });
+    const form = document.querySelector('form[data-ajax]');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const action = formData.get('action');
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Semester added successfully!');
+                    updateTable();
+                    const modal = bootstrap.Modal.getInstance(this.closest('.modal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred while adding the semester.', 'error');
+            });
+        });
+    }
+});
+</script>
 <div class="modal fade" id="addSemesterModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -200,12 +277,10 @@ $semesters = getTableData('semester', '*', null, 'semester_name ASC LIMIT ' . $o
                         <input type="date" class="form-control" id="end_date" name="end_date" required>
                     </div>
                     <div class="mb-3">
-                        <label for="status" class="form-label">Status</label>
-                        <select class="form-control" id="status" name="status" required>
-                            <option value="1">Active</option>
-                            <option value="0">Inactive</option>
-                        </select>
+                        <label for="academic_year" class="form-label">Academic Year</label>
+                        <input type="text" class="form-control" id="academic_year" name="academic_year" required>
                     </div>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -229,23 +304,23 @@ $semesters = getTableData('semester', '*', null, 'semester_name ASC LIMIT ' . $o
                     <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="semester_id" id="semester_id">
                     <div class="mb-3">
-                        <label for="editSemesterName" class="form-label">Semester Name</label>
-                        <input type="text" class="form-control" id="editSemesterName" name="semester_name" required>
+                        <label for="edit_semester_name" class="form-label">Semester Name</label>
+                        <input type="text" class="form-control" id="edit_semester_name" name="semester_name" required>
                     </div>
                     <div class="mb-3">
-                        <label for="editStartDate" class="form-label">Start Date</label>
-                        <input type="date" class="form-control" id="editStartDate" name="start_date" required>
+                        <label for="edit_start_date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="edit_start_date" name="start_date" required>
                     </div>
                     <div class="mb-3">
-                        <label for="editEndDate" class="form-label">End Date</label>
-                        <input type="date" class="form-control" id="editEndDate" name="end_date" required>
+                        <label for="edit_end_date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="edit_end_date" name="end_date" required>
                     </div>
                     <div class="mb-3">
-                        <label for="editStatus" class="form-label">Status</label>
-                        <select class="form-control" id="editStatus" name="status" required>
-                            <option value="1">Active</option>
-                            <option value="0">Inactive</option>
-                        </select>
+                        <label for="edit_academic_year" class="form-label">Academic Year</label>
+                        <input type="text" class="form-control" id="edit_academic_year" name="academic_year" required>
+                    </div>
+                    <div class="mb-3">
+
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -256,3 +331,4 @@ $semesters = getTableData('semester', '*', null, 'semester_name ASC LIMIT ' . $o
         </div>
     </div>
 </div>
+<?php require_once 'includes/footer.php'; ?>

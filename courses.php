@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get all courses with program names
 $courses = $pdo->query("
-    SELECT c.*, p.Programme_name 
+    SELECT c.*, p.program_name 
     FROM courses c 
     LEFT JOIN programs p ON c.program_id = p.program_id
 ")->fetchAll();
@@ -65,12 +65,12 @@ $courses = $pdo->query("
 $search = $_GET['search'] ?? '';
 if ($search) {
     $courses = $pdo->query("
-        SELECT c.*, p.Programme_name 
+        SELECT c.*, p.program_name 
         FROM courses c 
         LEFT JOIN programs p ON c.program_id = p.program_id
         WHERE c.Course_name LIKE '%$search%' 
         OR c.Course_code LIKE '%$search%' 
-        OR p.Programme_name LIKE '%$search%'
+        OR p.program_name LIKE '%$search%'
         ORDER BY c.Course_name ASC
     ")->fetchAll();
 }
@@ -83,7 +83,7 @@ $totalCourses = count($courses);
 $totalPages = ceil($totalCourses / $limit);
 
 $courses = $pdo->query("
-    SELECT c.*, p.Programme_name 
+    SELECT c.*, p.program_name 
     FROM courses c 
     LEFT JOIN programs p ON c.program_id = p.program_id
     ORDER BY c.Course_name ASC 
@@ -141,7 +141,7 @@ $courses = $pdo->query("
                                 <td><?php echo htmlspecialchars($course['Course_name']); ?></td>
                                 <td><?php echo htmlspecialchars($course['Course_code']); ?></td>
                                 <td><?php echo $course['credits']; ?></td>
-                                <td><?php echo htmlspecialchars($course['Programme_name']); ?></td>
+                                <td><?php echo htmlspecialchars($course['program_name']); ?></td>
                                 <td><?php echo $course['semester']; ?></td>
                                 <td>
                                     <button class="btn btn-sm btn-primary edit-course" 
@@ -225,7 +225,7 @@ $courses = $pdo->query("
                             <option value="">Select Program</option>
                             <?php foreach ($programs as $program): ?>
                                 <option value="<?php echo $program['program_id']; ?>">
-                                    <?php echo htmlspecialchars($program['Programme_name']); ?>
+                                    <?php echo htmlspecialchars($program['program_name']); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -284,7 +284,7 @@ $courses = $pdo->query("
                             <option value="">Select Program</option>
                             <?php foreach ($programs as $program): ?>
                                 <option value="<?php echo $program['program_id']; ?>">
-                                    <?php echo htmlspecialchars($program['Programme_name']); ?>
+                                    <?php echo htmlspecialchars($program['program_name']); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -312,3 +312,5 @@ $courses = $pdo->query("
         </div>
     </div>
 </div>
+
+<?php require_once 'includes/footer.php'; ?>
