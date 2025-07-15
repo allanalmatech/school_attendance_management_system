@@ -30,11 +30,17 @@ function updateData($table, $data, $where) {
     return $stmt->execute($data);
 }
 
-function deleteData($table, $where) {
+function deleteData($table, $where, $params = []) {
     global $pdo;
-    $sql = "DELETE FROM $table WHERE $where";
-    $stmt = $pdo->prepare($sql);
-    return $stmt->execute();
+    try {
+        $sql = "DELETE FROM $table WHERE $where";
+        $stmt = $pdo->prepare($sql);
+        $success = $stmt->execute($params);
+        return $success;
+    } catch (PDOException $e) {
+        error_log("Database error: " . $e->getMessage());
+        return false;
+    }
 }
 
 function generateResponse($success, $message = '', $data = null) {
