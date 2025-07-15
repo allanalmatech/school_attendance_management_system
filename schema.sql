@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 14, 2025 at 11:33 PM
+-- Generation Time: Jul 15, 2025 at 10:09 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -85,15 +85,15 @@ CREATE TABLE `courses` (
 
 CREATE TABLE `faculty` (
   `faculty_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `first_name` varchar(50) NOT NULL,
-  `last_name` varchar(50) NOT NULL,
-  `department` varchar(100) NOT NULL,
-  `phone` varchar(20) DEFAULT NULL,
-  `email` varchar(255) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `faculty_name` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `faculty`
+--
+
+INSERT INTO `faculty` (`faculty_id`, `faculty_name`) VALUES
+(1, 'FCI');
 
 -- --------------------------------------------------------
 
@@ -120,16 +120,10 @@ CREATE TABLE `programs` (
   `program_code` varchar(10) NOT NULL,
   `program_name` varchar(100) NOT NULL,
   `description` text DEFAULT NULL,
+  `faculty_id` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `programs`
---
-
-INSERT INTO `programs` (`program_id`, `program_code`, `program_name`, `description`, `created_at`, `updated_at`) VALUES
-(11, 'BSE', 'Bachelor Of Software Engineering', 'Bachelor Of Software Engineering', '2025-07-14 21:18:24', '2025-07-14 21:18:24');
 
 -- --------------------------------------------------------
 
@@ -167,7 +161,7 @@ CREATE TABLE `students` (
   `first_name` varchar(50) NOT NULL,
   `last_name` varchar(50) NOT NULL,
   `date_of_birth` date NOT NULL,
-  `gender` enum('male','female','other') NOT NULL,
+  `gender` enum('male','female') NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `email` varchar(255) NOT NULL,
   `address` text DEFAULT NULL,
@@ -243,16 +237,15 @@ ALTER TABLE `attendance_summary`
 ALTER TABLE `courses`
   ADD PRIMARY KEY (`course_id`),
   ADD UNIQUE KEY `course_code` (`course_code`),
-  ADD KEY `program_id` (`program_id`),
-  ADD KEY `semester_id` (`semester_id`),
-  ADD KEY `idx_course_code` (`course_code`);
+  ADD KEY `idx_course_code` (`course_code`),
+  ADD KEY `fk_courses_program` (`program_id`),
+  ADD KEY `fk_courses_semester` (`semester_id`);
 
 --
 -- Indexes for table `faculty`
 --
 ALTER TABLE `faculty`
-  ADD PRIMARY KEY (`faculty_id`),
-  ADD UNIQUE KEY `user_id` (`user_id`);
+  ADD PRIMARY KEY (`faculty_id`);
 
 --
 -- Indexes for table `faculty_courses`
@@ -267,7 +260,8 @@ ALTER TABLE `faculty_courses`
 --
 ALTER TABLE `programs`
   ADD PRIMARY KEY (`program_id`),
-  ADD UNIQUE KEY `program_code` (`program_code`);
+  ADD UNIQUE KEY `program_code` (`program_code`),
+  ADD KEY `fk_program_faculty` (`faculty_id`);
 
 --
 -- Indexes for table `semesters`
@@ -329,7 +323,7 @@ ALTER TABLE `courses`
 -- AUTO_INCREMENT for table `faculty`
 --
 ALTER TABLE `faculty`
-  MODIFY `faculty_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `faculty_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `programs`
@@ -380,13 +374,9 @@ ALTER TABLE `attendance_summary`
 --
 ALTER TABLE `courses`
   ADD CONSTRAINT `courses_ibfk_1` FOREIGN KEY (`program_id`) REFERENCES `programs` (`program_id`),
-  ADD CONSTRAINT `courses_ibfk_2` FOREIGN KEY (`semester_id`) REFERENCES `semesters` (`semester_id`);
-
---
--- Constraints for table `faculty`
---
-ALTER TABLE `faculty`
-  ADD CONSTRAINT `faculty_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
+  ADD CONSTRAINT `courses_ibfk_2` FOREIGN KEY (`semester_id`) REFERENCES `semesters` (`semester_id`),
+  ADD CONSTRAINT `fk_courses_program` FOREIGN KEY (`program_id`) REFERENCES `programs` (`program_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_courses_semester` FOREIGN KEY (`semester_id`) REFERENCES `semesters` (`semester_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `faculty_courses`
@@ -395,6 +385,12 @@ ALTER TABLE `faculty_courses`
   ADD CONSTRAINT `faculty_courses_ibfk_1` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`faculty_id`),
   ADD CONSTRAINT `faculty_courses_ibfk_2` FOREIGN KEY (`course_id`) REFERENCES `courses` (`course_id`),
   ADD CONSTRAINT `faculty_courses_ibfk_3` FOREIGN KEY (`semester_id`) REFERENCES `semesters` (`semester_id`);
+
+--
+-- Constraints for table `programs`
+--
+ALTER TABLE `programs`
+  ADD CONSTRAINT `fk_program_faculty` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`faculty_id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Constraints for table `students`
