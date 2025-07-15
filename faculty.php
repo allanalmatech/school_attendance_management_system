@@ -9,71 +9,107 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
             case 'add':
-                $data = [
-                    'Faculty_name' => sanitizeInput($_POST['Faculty_name']),
-                    'email' => sanitizeInput($_POST['email']),
-                    'phone' => sanitizeInput($_POST['phone']),
-                    'department' => sanitizeInput($_POST['department'])
-                ];
-                if (insertData('faculty', $data)) {
-                    echo generateResponse(true, 'Faculty member added successfully');
-                } else {
-                    echo generateResponse(false, 'Error adding faculty member');
+                try {
+                    $faculty_name = sanitizeInput($_POST['faculty_name']);
+                    
+                    // Check if faculty already exists
+                    $existing = getTableData('faculty', '*', "faculty_name = '$faculty_name'");
+                    if (!empty($existing)) {
+                        throw new Exception('Faculty already exists');
+                    }
+                    
+                    $data = [
+                        'faculty_name' => $faculty_name
+                    ];
+                    
+                    if (insertData('faculty', $data)) {
+                        echo generateResponse(true, 'Faculty added successfully');
+                    } else {
+                        throw new Exception('Database error: Failed to add faculty');
+                    }
+                } catch (Exception $e) {
+                    error_log("Add faculty error: " . $e->getMessage());
+                    echo generateResponse(false, $e->getMessage());
                 }
                 exit();
             
             case 'edit':
                 $data = [
-                    'Faculty_name' => sanitizeInput($_POST['Faculty_name']),
-                    'email' => sanitizeInput($_POST['email']),
-                    'phone' => sanitizeInput($_POST['phone']),
-                    'department' => sanitizeInput($_POST['department'])
+                    'faculty_name' => sanitizeInput($_POST['faculty_name'])
                 ];
                 $where = "faculty_id = " . intval($_POST['faculty_id']);
                 if (updateData('faculty', $data, $where)) {
-                    echo generateResponse(true, 'Faculty member updated successfully');
+                    echo generateResponse(true, 'Faculty updated successfully');
                 } else {
-                    echo generateResponse(false, 'Error updating faculty member');
+                    echo generateResponse(false, 'Error updating Faculty');
                 }
                 exit();
             
             case 'delete':
-                $where = "faculty_id = " . intval($_POST['faculty_id']);
-                if (deleteData('faculty', $where)) {
-                    echo generateResponse(true, 'Faculty member deleted successfully');
-                } else {
-                    echo generateResponse(false, 'Error deleting faculty member');
+                try {
+                    $faculty_id = intval($_POST['faculty_id']);
+                    if ($faculty_id <= 0) {
+                        throw new Exception('Invalid faculty ID');
+                    }
+                    
+                    // First check if faculty exists
+                    $faculty = getTableData('faculty', '*', "faculty_id = $faculty_id");
+                    if (empty($faculty)) {
+                        throw new Exception('Faculty not found');
+                    }
+                    
+                    // Check if faculty is being used in programs
+                    $programs = getTableData('programs', '*', "faculty_id = $faculty_id");
+                    if (!empty($programs)) {
+                        throw new Exception('Cannot delete faculty because it is being used in programs');
+                    }
+                    
+                    // Delete faculty
+                    $where = "faculty_id = :faculty_id";
+                    $params = [':faculty_id' => $faculty_id];
+                    
+                    $result = deleteData('faculty', $where, $params);
+                    if ($result) {
+                        // Return success response
+                        echo generateResponse(true, 'Faculty deleted successfully');
+                    } else {
+                        throw new Exception('Database error: Failed to delete faculty');
+                    }
+                } catch (Exception $e) {
+                    error_log("Delete faculty error: " . $e->getMessage());
+                    echo generateResponse(false, $e->getMessage());
                 }
                 exit();
         }
     }
 }
 
-// Get all faculty members
+// Get all faculty 
 $faculty = getTableData('faculty');
-
+            
 // Search functionality
 $search = $_GET['search'] ?? '';
 if ($search) {
     $faculty = getTableData('faculty', '*', 
-        "first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR email LIKE '%$search%' OR department LIKE '%$search%'", 
-        'first_name ASC, last_name ASC');
+        "faculty_name LIKE '%$search%'", 
+        'faculty_name ASC');
 }
 
 // Pagination
 $limit = 10;
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $offset = ($page - 1) * $limit;
-$totalFaculty = count(getTableData('faculty'));
+$totalFaculty = count($faculty);
 $totalPages = ceil($totalFaculty / $limit);
 
-$faculty = getTableData('faculty', '*', null, 'first_name ASC, last_name ASC LIMIT ' . $offset . ', ' . $limit);
+$faculty = getTableData('faculty', '*', null, 'faculty_name ASC LIMIT ' . $offset . ', ' . $limit);
+
 ?>
 
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-12">
-            <h2>Faculty Members</h2>
+            <h2>Faculty </h2>
             <hr>
         </div>
     </div>
@@ -92,7 +128,7 @@ $faculty = getTableData('faculty', '*', null, 'first_name ASC, last_name ASC LIM
     <div class="row mb-4">
         <div class="col-md-12">
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFacultyModal">
-                Add New Faculty Member
+                Add New Faculty
             </button>
         </div>
     </div>
@@ -104,38 +140,27 @@ $faculty = getTableData('faculty', '*', null, 'first_name ASC, last_name ASC LIM
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Department</th>
+                            <th>Faculty Name</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($faculty as $member): ?>
                             <tr>
-                                <td><?php echo $member['faculty_id']; ?></td>
-                                <td><?php echo htmlspecialchars($member['first_name'] . ' ' . $member['last_name']); ?></td>
-                                <td><?php echo htmlspecialchars($member['email']); ?></td>
-                                <td><?php echo htmlspecialchars($member['phone']); ?></td>
-                                <td><?php echo htmlspecialchars($member['department']); ?></td>
+                                <td><?php echo htmlspecialchars($member['faculty_name'] ?? ''); ?></td>
                                 <td>
                                     <button class="btn btn-sm btn-primary edit-faculty" 
                                         data-id="<?php echo $member['faculty_id']; ?>"
-                                        data-first-name="<?php echo htmlspecialchars($member['first_name']); ?>"
-                        data-last-name="<?php echo htmlspecialchars($member['last_name']); ?>"
-                                        data-email="<?php echo htmlspecialchars($member['email']); ?>"
-                                        data-phone="<?php echo htmlspecialchars($member['phone']); ?>"
-                                        data-department="<?php echo htmlspecialchars($member['department']); ?>"
+                                        data-name="<?php echo htmlspecialchars($member['faculty_name'] ?? ''); ?>"
                                         data-bs-toggle="modal" 
                                         data-bs-target="#editFacultyModal">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-sm btn-danger delete-faculty" 
-                                        data-id="<?php echo $member['faculty_id']; ?>">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                         data-id="<?php echo $member['faculty_id']; ?>"
+                                         data-name="<?php echo htmlspecialchars($member['faculty_name'] ?? ''); ?>">
+                                         <i class="fas fa-trash"></i>
+                                     </button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -179,35 +204,19 @@ $faculty = getTableData('faculty', '*', null, 'first_name ASC, last_name ASC LIM
         <div class="modal-content">
             <form method="POST" action="" data-ajax>
                 <div class="modal-header">
-                    <h5 class="modal-title">Add New Faculty Member</h5>
+                    <h5 class="modal-title">Add New Faculty</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="action" value="add">
                     <div class="mb-3">
-                        <label for="first_name" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="first_name" name="first_name" required>
-                        <div class="mb-3">
-                            <label for="last_name" class="form-label">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">Phone</label>
-                        <input type="text" class="form-control" id="phone" name="phone" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="department" class="form-label">Department</label>
-                        <input type="text" class="form-control" id="department" name="department" required>
+                        <label for="faculty_name" class="form-label">Faculty Name</label>
+                        <input type="text" class="form-control" id="faculty_name" name="faculty_name" required>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Add Faculty Member</button>
+                    <button type="submit" class="btn btn-primary">Add Faculty</button>
                 </div>
             </form>
         </div>
@@ -220,31 +229,15 @@ $faculty = getTableData('faculty', '*', null, 'first_name ASC, last_name ASC LIM
         <div class="modal-content">
             <form method="POST" action="" data-ajax>
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Faculty Member</h5>
+                    <h5 class="modal-title">Edit Faculty</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="faculty_id" id="faculty_id">
                     <div class="mb-3">
-                        <label for="edit_first_name" class="form-label">First Name</label>
-                        <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_last_name" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="edit_email" name="email" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_phone" class="form-label">Phone</label>
-                        <input type="tel" class="form-control" id="edit_phone" name="phone" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_department" class="form-label">Department</label>
-                        <input type="text" class="form-control" id="edit_department" name="department" required>
+                        <label for="faculty_name" class="form-label">Faculty Name</label>
+                        <input type="text" class="form-control" id="faculty_name" name="faculty_name" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -257,3 +250,41 @@ $faculty = getTableData('faculty', '*', null, 'first_name ASC, last_name ASC LIM
 </div>
 
 <?php require_once 'includes/footer.php'; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle delete faculty
+    document.querySelectorAll('.delete-faculty').forEach(button => {
+        button.addEventListener('click', function() {
+            const facultyId = this.dataset.id;
+            const facultyName = this.dataset.name;
+            
+            if (confirm(`Are you sure you want to delete faculty: ${facultyName}?`)) {
+                // Send delete request
+                fetch('faculty.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `action=delete&faculty_id=${facultyId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message before reload
+                        alert('Faculty deleted successfully');
+                        // Reload the page
+                        location.reload();
+                    } else {
+                        alert('Error deleting faculty: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error occurred while deleting faculty');
+                });
+            }
+        });
+    });
+});
+</script>
