@@ -137,6 +137,7 @@ $faculties = getTableData('faculty');
                                         data-code="<?php echo htmlspecialchars($program['program_code'] ?? ''); ?>"
                                         data-name="<?php echo htmlspecialchars($program['program_name']); ?>"
                                         data-description="<?php echo htmlspecialchars($program['description']); ?>"
+                                        data-faculty-id="<?php echo $program['faculty_id']; ?>"
                                         data-bs-toggle="modal" 
                                         data-bs-target="#editProgramModal">
                                         <i class="fas fa-edit"></i>
@@ -186,13 +187,14 @@ $faculties = getTableData('faculty');
 <div class="modal fade" id="addProgramModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="" data-ajax="true" id="programForm">
+            <form id="addProgramForm">
+                <div id="formMessageBox" class="alert d-none mx-3 mt-3" role="alert"></div>
                 <div class="modal-header">
                     <h5 class="modal-title">Add New Program</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" name="action" value="add">
+                    <input type="hidden" name="action" value="add_program">
                     <div class="mb-3">
                         <label for="program_code" class="form-label">Program Code</label>
                         <input type="text" class="form-control" id="program_code" name="program_code" required>
@@ -203,7 +205,7 @@ $faculties = getTableData('faculty');
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        <textarea class="form-control" id="description" name="description"></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="faculty_id" class="form-label">Faculty</label>
@@ -219,7 +221,7 @@ $faculties = getTableData('faculty');
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary" id="submitProgram">Add Program</button>
+                    <button type="submit" class="btn btn-primary">Add Program</button>
                 </div>
             </form>
         </div>
@@ -227,149 +229,6 @@ $faculties = getTableData('faculty');
 </div>
 
 <!-- Edit Program Modal -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap modal
-    const addModal = new bootstrap.Modal(document.getElementById('addProgramModal'));
-    const editModal = new bootstrap.Modal(document.getElementById('editProgramModal'));
-
-    // Handle form submissions
-    document.getElementById('programForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        const action = formData.get('action');
-        
-        // Ensure program_code is included
-        if (!formData.has('program_code')) {
-            formData.append('program_code', '');
-        }
-
-        // Show loading overlay
-        showLoading();
-        
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showMessage(data.message);
-                // Optionally reload the page or update the table
-                setTimeout(() => { location.reload(); }, 1500); // Reload after 1.5s
-                // Close the appropriate modal
-                const currentModal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
-                if (currentModal) {
-                    currentModal.hide();
-                }
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            showMessage('An error occurred while ' + (action === 'add' ? 'adding' : 'updating') + ' the program.', 'error');
-        })
-        .finally(() => {
-            // Hide loading overlay
-            hideLoading();
-        });
-    });
-    // Handle form submissions
-    document.querySelectorAll('form[data-ajax]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const formData = new FormData(this);
-            const action = formData.get('action');
-
-            // Add program_code field if it's missing
-            if (!formData.has('program_code')) {
-                formData.append('program_code', '');
-            }
-
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showMessage(data.message); // Show success message
-                    // Optionally, update the table here via JS if you want
-                    const modal = bootstrap.Modal.getInstance(this.closest('.modal'));
-                    if (modal) {
-                        modal.hide();
-                    }
-                } else {
-                    showMessage(data.message, 'error');
-                }
-            })
-            .catch(error => {
-                showMessage('An error occurred while ' + (action === 'add' ? 'adding' : 'updating') + ' the program.', 'error');
-            });
-    });
-
-    // Handle edit button click
-    document.querySelectorAll('.edit-program').forEach(button => {
-        button.addEventListener('click', function() {
-            document.getElementById('program_id').value = this.dataset.id;
-            document.getElementById('edit_program_code').value = this.dataset.code;
-            document.getElementById('edit_program_name').value = this.dataset.name;
-            document.getElementById('edit_description').value = this.dataset.description;
-            document.getElementById('edit_faculty_id').value = this.dataset.facultyId;
-        });
-    });
-
-    // Handle delete button click
-    document.querySelectorAll('.delete-program').forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            const programId = this.dataset.id;
-
-            if (confirm('Are you sure you want to delete this program?')) {
-                fetch(window.location.href, {
-                    method: 'POST',
-                    body: new URLSearchParams({
-                        action: 'delete',
-                        program_id: programId
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showMessage(data.message);
-                        // Optionally, remove the row from the table here
-                    } else {
-                        showMessage(data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    showMessage('An error occurred while deleting the program.', 'error');
-                });
-            }
-        });
-    });
-});
-
-// Message Display function
-function showMessage(message, type = 'success') {
-    const box = document.getElementById('messageBox');
-    box.textContent = message;
-    box.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
-    if (type === 'error') {
-        box.classList.add('alert-danger');
-    } else if (type === 'info') {
-        box.classList.add('alert-info');
-    } else {
-        box.classList.add('alert-success');
-    }
-    // Hide after 5 seconds
-    setTimeout(() => {
-        box.classList.add('d-none');
-    }, 5000);
-}
-</script>
 <div class="modal fade" id="editProgramModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -393,6 +252,17 @@ function showMessage(message, type = 'success') {
                         <label for="editDescription" class="form-label">Description</label>
                         <textarea class="form-control" id="editDescription" name="description" rows="3"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label for="edit_faculty_id" class="form-label">Faculty</label>
+                        <select class="form-control" id="edit_faculty_id" name="faculty_id" required>
+                            <option value="">Select Faculty</option>
+                            <?php foreach ($faculties as $faculty): ?>
+                                <option value="<?php echo $faculty['faculty_id']; ?>">
+                                    <?php echo htmlspecialchars($faculty['faculty_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -405,7 +275,6 @@ function showMessage(message, type = 'success') {
 
 <!-- Message Display -->
 <div id="messageBox" class="alert d-none" role="alert"></div>
-<!-- End Message Display -->
 
 <!-- Toast Notification -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
@@ -419,3 +288,100 @@ function showMessage(message, type = 'success') {
 <!-- End Toast Notification -->
 
 <?php require_once 'includes/footer.php'; ?>
+
+<script>
+document.getElementById('addProgramForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+
+    fetch('api/programs.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        showFormMessage(data.message, data.success ? 'success' : 'error', 'formMessageBox');
+        if (data.success) {
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('addProgramModal')).hide();
+                location.reload(); // Or update table via JS
+            }, 1500);
+        }
+    })
+    .catch(() => {
+        showFormMessage('Error processing request.', 'error', 'formMessageBox');
+    });
+});
+
+// Edit Program Modal: Fill form when edit button is clicked
+document.querySelectorAll('.edit-program').forEach(button => {
+    button.addEventListener('click', function() {
+        document.getElementById('program_id').value = this.dataset.id;
+        document.getElementById('edit_program_code').value = this.dataset.code;
+        document.getElementById('edit_program_name').value = this.dataset.name;
+        document.getElementById('editDescription').value = this.dataset.description;
+        // If you have faculty selection in edit modal, set it here:
+        document.getElementById('edit_faculty_id').value = this.dataset.facultyId;
+    });
+});
+
+// Handle Edit Program form submit
+document.getElementById('programForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    formData.set('action', 'edit_program'); // Ensure correct action
+
+    fetch('api/programs.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        showFormMessage(data.message, data.success ? 'success' : 'error', 'formMessageBox');
+        if (data.success) {
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('editProgramModal')).hide();
+                location.reload();
+            }, 1500);
+        }
+    })
+    .catch(() => {
+        showFormMessage('Error processing request.', 'error', 'formMessageBox');
+    });
+});
+
+// Handle Delete Program
+document.querySelectorAll('.delete-program').forEach(button => {
+    button.addEventListener('click', function() {
+        if (!confirm('Are you sure you want to delete this program?')) return;
+        const formData = new FormData();
+        formData.set('action', 'delete_program');
+        formData.set('program_id', this.dataset.id);
+
+        fetch('api/programs.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            showFormMessage(data.message, data.success ? 'success' : 'error', 'messageBox');
+            if (data.success) {
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            }
+        })
+        .catch(() => {
+            showFormMessage('Error processing request.', 'error', 'messageBox');
+        });
+    });
+});
+
+function showFormMessage(message, type = 'success', boxId = 'formMessageBox') {
+    const box = document.getElementById(boxId);
+    box.textContent = message;
+    box.classList.remove('d-none', 'alert-success', 'alert-danger');
+    box.classList.add(type === 'error' ? 'alert-danger' : 'alert-success');
+    setTimeout(() => box.classList.add('d-none'), 5000);
+}
+</script>
