@@ -106,6 +106,7 @@ $semesters = getTableData('semesters', '*', null, 'semester_name ASC LIMIT ' . $
                         <tr>
                             <th>ID</th>
                             <th>Semester Name</th>
+                            <th>Academic Year</th> <!-- Add this -->
                             <th>Start Date</th>
                             <th>End Date</th>
                             <th>Status</th>
@@ -117,6 +118,7 @@ $semesters = getTableData('semesters', '*', null, 'semester_name ASC LIMIT ' . $
                             <tr>
                                 <td><?php echo $semester['semester_id']; ?></td>
                                 <td><?php echo htmlspecialchars($semester['semester_name']); ?></td>
+                                <td><?php echo htmlspecialchars($semester['academic_year']); ?></td> <!-- Add this -->
                                 <td><?php echo htmlspecialchars($semester['start_date']); ?></td>
                                 <td><?php echo htmlspecialchars($semester['end_date']); ?></td>
                                 <td>
@@ -222,48 +224,74 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    const form = document.querySelector('form[data-ajax]');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(this);
-            const action = formData.get('action');
-            
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast('Semester added successfully!');
-                    updateTable();
-                    const modal = bootstrap.Modal.getInstance(this.closest('.modal'));
-                    if (modal) {
-                        modal.hide();
-                    }
-                } else {
-                    showToast(data.message, 'error');
-                }
-            })
-            .catch(error => {
-                showToast('An error occurred while adding the semester.', 'error');
-            });
-        });
+
+    // Add Semester
+    document.getElementById('addSemesterForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    formData.set('action', 'add');
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        showFormMessage(data.message, data.success ? 'success' : 'error', 'addSemesterMessageBox');
+        if (data.success) {
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('addSemesterModal')).hide();
+            }, 1500);
+            setTimeout(() => location.reload(), 5000);
+        }
+    });
+});
+
+    // Edit Semester
+    document.getElementById('editSemesterForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    formData.set('action', 'edit');
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        showFormMessage(data.message, data.success ? 'success' : 'error', 'editSemesterMessageBox');
+        if (data.success) {
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('editSemesterModal')).hide();
+            }, 1500);
+            setTimeout(() => location.reload(), 5000);
+        }
+    });
+});
+
+
+    // Show message in modal
+    function showFormMessage(message, type = 'success', boxId = 'addSemesterMessageBox') {
+        const box = document.getElementById(boxId);
+        box.textContent = message;
+        box.classList.remove('d-none', 'alert-success', 'alert-danger');
+        box.classList.add(type === 'error' ? 'alert-danger' : 'alert-success');
+        setTimeout(() => box.classList.add('d-none'), 5000);
     }
 });
 </script>
 <div class="modal fade" id="addSemesterModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="" data-ajax>
+            <form id="addSemesterForm" method="POST" action="" data-ajax>
                 <div class="modal-header">
                     <h5 class="modal-title">Add New Semester</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- 🟢 Message box here inside modal-body -->
+                    <div id="addSemesterMessageBox" class="alert d-none" role="alert"></div>
+
                     <input type="hidden" name="action" value="add">
+
                     <div class="mb-3">
                         <label for="semester_name" class="form-label">Semester Name</label>
                         <input type="text" class="form-control" id="semester_name" name="semester_name" required>
@@ -277,11 +305,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         <input type="date" class="form-control" id="end_date" name="end_date" required>
                     </div>
                     <div class="mb-3">
-                        <label for="academic_year" class="form-label">Academic Year</label>
+                        <label for="acade                        const form = document.querySelector('form[data-ajax]');
+                        if (form) {
+                            form.addEventListener('submit', function(e) {
+                                // ... generic AJAX code ...
+                            });
+                        }mic_year" class="form-label">Academic Year</label>
                         <input type="text" class="form-control" id="academic_year" name="academic_year" required>
                     </div>
-
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-primary">Add Semester</button>
@@ -291,18 +324,23 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
+
 <!-- Edit Semester Modal -->
 <div class="modal fade" id="editSemesterModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="" data-ajax>
+            <form id="editSemesterForm" method="POST" action="" data-ajax>
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Semester</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- 🟢 Message box here inside modal-body -->
+                    <div id="editSemesterMessageBox" class="alert d-none" role="alert"></div>
+
                     <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="semester_id" id="semester_id">
+
                     <div class="mb-3">
                         <label for="edit_semester_name" class="form-label">Semester Name</label>
                         <input type="text" class="form-control" id="edit_semester_name" name="semester_name" required>
@@ -319,10 +357,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label for="edit_academic_year" class="form-label">Academic Year</label>
                         <input type="text" class="form-control" id="edit_academic_year" name="academic_year" required>
                     </div>
-                    <div class="mb-3">
-
-                    </div>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-primary">Update Semester</button>
@@ -331,4 +367,5 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+
 <?php require_once 'includes/footer.php'; ?>

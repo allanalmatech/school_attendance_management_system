@@ -1,4 +1,3 @@
- 
 <?php
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
@@ -13,32 +12,32 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 switch ($_POST['action'] ?? '') {
     case 'add_semester':
         $data = [
-            'Semester_name' => trim($_POST['Semester_name'] ?? ''),
-            'Start_date' => trim($_POST['Start_date'] ?? ''),
-            'End_date' => trim($_POST['End_date'] ?? ''),
-            'Status' => trim($_POST['Status'] ?? 'active')
+            'semester_name' => trim($_POST['semester_name'] ?? ''),
+            'academic_year' => trim($_POST['academic_year'] ?? ''),
+            'start_date' => trim($_POST['start_date'] ?? ''),
+            'end_date' => trim($_POST['end_date'] ?? '')
         ];
         
         // Validate required fields
-        if (empty($data['Semester_name']) || empty($data['Start_date']) || empty($data['End_date'])) {
+        if (empty($data['semester_name']) || empty($data['start_date']) || empty($data['end_date'])) {
             echo generateResponse(false, 'Semester name, start date, and end date are required');
             exit();
         }
         
         // Validate date format
-        if (!preg_match("/^\d{4}-\d{2}-\d{2}$/", $data['Start_date']) || !preg_match("/^\d{4}-\d{2}-\d{2}$/", $data['End_date'])) {
+        if (!preg_match("/^\d{4}-\d{2}-\d{2}$/", $data['start_date']) || !preg_match("/^\d{4}-\d{2}-\d{2}$/", $data['end_date'])) {
             echo generateResponse(false, 'Invalid date format. Please use YYYY-MM-DD');
             exit();
         }
         
         // Validate if start date is before end date
-        if (strtotime($data['Start_date']) >= strtotime($data['End_date'])) {
+        if (strtotime($data['start_date']) >= strtotime($data['end_date'])) {
             echo generateResponse(false, 'Start date must be before end date');
             exit();
         }
         
         // Check if semester name already exists
-        $existing = $pdo->query("SELECT COUNT(*) as count FROM semesters WHERE Semester_name = '" . $pdo->quote($data['Semester_name']) . "'")->fetch()['count'];
+        $existing = $pdo->query("SELECT COUNT(*) as count FROM semesters WHERE semester_name = '" . $pdo->quote($data['semester_name']) . "'")->fetch()['count'];
         
         if ($existing > 0) {
             echo generateResponse(false, 'Semester name already exists');
@@ -46,12 +45,12 @@ switch ($_POST['action'] ?? '') {
         }
         
         // Insert semester record
-        $stmt = $pdo->prepare("INSERT INTO semesters (Semester_name, Start_date, End_date, Status) VALUES (?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO semesters (semester_name, academic_year, start_date, end_date) VALUES (?, ?, ?, ?)");
         $success = $stmt->execute([
-            $data['Semester_name'],
-            $data['Start_date'],
-            $data['End_date'],
-            $data['Status']
+            $data['semester_name'],
+            $data['academic_year'],
+            $data['start_date'],
+            $data['end_date']
         ]);
         
         echo generateResponse($success, $success ? 'Semester added successfully' : 'Error adding semester');
@@ -60,26 +59,26 @@ switch ($_POST['action'] ?? '') {
     case 'edit_semester':
         $semesterId = intval($_POST['semester_id'] ?? 0);
         $data = [
-            'Semester_name' => trim($_POST['Semester_name'] ?? ''),
-            'Start_date' => trim($_POST['Start_date'] ?? ''),
-            'End_date' => trim($_POST['End_date'] ?? ''),
-            'Status' => trim($_POST['Status'] ?? 'active')
+            'semester_name' => trim($_POST['semester_name'] ?? ''),
+            'academic_year' => trim($_POST['academic_year'] ?? ''),
+            'start_date' => trim($_POST['start_date'] ?? ''),
+            'end_date' => trim($_POST['end_date'] ?? '')
         ];
         
         // Validate required fields
-        if (empty($data['Semester_name']) || empty($data['Start_date']) || empty($data['End_date'])) {
+        if (empty($data['semester_name']) || empty($data['start_date']) || empty($data['end_date'])) {
             echo generateResponse(false, 'Semester name, start date, and end date are required');
             exit();
         }
         
         // Validate date format
-        if (!preg_match("/^\d{4}-\d{2}-\d{2}$/", $data['Start_date']) || !preg_match("/^\d{4}-\d{2}-\d{2}$/", $data['End_date'])) {
+        if (!preg_match("/^\d{4}-\d{2}-\d{2}$/", $data['start_date']) || !preg_match("/^\d{4}-\d{2}-\d{2}$/", $data['end_date'])) {
             echo generateResponse(false, 'Invalid date format. Please use YYYY-MM-DD');
             exit();
         }
         
         // Validate if start date is before end date
-        if (strtotime($data['Start_date']) >= strtotime($data['End_date'])) {
+        if (strtotime($data['start_date']) >= strtotime($data['end_date'])) {
             echo generateResponse(false, 'Start date must be before end date');
             exit();
         }
@@ -96,7 +95,7 @@ switch ($_POST['action'] ?? '') {
         $existing = $pdo->query("
             SELECT COUNT(*) as count 
             FROM semesters 
-            WHERE Semester_name = '" . $pdo->quote($data['Semester_name']) . "'
+            WHERE semester_name = '" . $pdo->quote($data['semester_name']) . "'
             AND semester_id != $semesterId
         ")->fetch()['count'];
         
@@ -106,12 +105,12 @@ switch ($_POST['action'] ?? '') {
         }
         
         // Update semester record
-        $stmt = $pdo->prepare("UPDATE semesters SET Semester_name = ?, Start_date = ?, End_date = ?, Status = ? WHERE semester_id = ?");
+        $stmt = $pdo->prepare("UPDATE semesters SET semester_name = ?, academic_year = ?, start_date = ?, end_date = ? WHERE semester_id = ?");
         $success = $stmt->execute([
-            $data['Semester_name'],
-            $data['Start_date'],
-            $data['End_date'],
-            $data['Status'],
+            $data['semester_name'],
+            $data['academic_year'],
+            $data['start_date'],
+            $data['end_date'],
             $semesterId
         ]);
         
@@ -168,10 +167,10 @@ switch ($_POST['action'] ?? '') {
         ";
         
         if ($search) {
-            $query .= " AND (Semester_name LIKE :search OR Status LIKE :search)";
+            $query .= " AND (semester_name LIKE :search OR status LIKE :search)";
         }
         
-        $query .= " ORDER BY Start_date DESC LIMIT :offset, :limit";
+        $query .= " ORDER BY start_date DESC LIMIT :offset, :limit";
         
         $stmt = $pdo->prepare($query);
         $stmt->bindValue(':search', "%$search%", PDO::PARAM_STR);
@@ -189,10 +188,10 @@ switch ($_POST['action'] ?? '') {
         ";
         
         if ($search) {
-            $totalQuery .= " AND (Semester_name LIKE :search OR Status LIKE :search)";
+            $totalQuery .= " AND (semester_name LIKE :search OR status LIKE :search)";
         }
         
-        $totalQuery .= " ORDER BY Start_date DESC";
+        $totalQuery .= " ORDER BY start_date DESC";
         
         $totalStmt = $pdo->prepare($totalQuery);
         $totalStmt->bindValue(':search', "%$search%", PDO::PARAM_STR);
@@ -225,3 +224,73 @@ switch ($_POST['action'] ?? '') {
         break;
 }
 ?>
+<div id="toastMessage" class="alert d-none position-fixed top-0 start-50 translate-middle-x mt-3" role="alert" style="z-index:9999"></div>
+<script>
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toastMessage');
+    toast.textContent = message;
+    toast.classList.remove('d-none', 'alert-success', 'alert-danger');
+    toast.classList.add(type === 'error' ? 'alert-danger' : 'alert-success');
+    setTimeout(() => toast.classList.add('d-none'), 5000);
+}
+
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        fetch('api/semesters.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            showToast(data.message, data.success ? 'success' : 'error');
+            if (data.success) {
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(this.closest('.modal')).hide();
+                    location.reload();
+                }, 1500);
+            }
+        });
+    });
+});
+
+document.querySelectorAll('.delete-semester').forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        const semesterId = this.dataset.id;
+        if (confirm('Are you sure you want to delete this semester?')) {
+            fetch('api/semesters.php', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    action: 'delete_semester',
+                    semester_id: semesterId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    setTimeout(() => location.reload(), 1500);
+                }
+            });
+        }
+    });
+});
+</script>
+
+<!-- Add Semester Modal -->
+<div id="addSemesterMessageBox" class="alert d-none mx-3 mt-3" role="alert"></div>
+<input type="hidden" name="semester_id" id="semester_id">
+<input type="text" name="semester_name" id="edit_semester_name" required>
+<input type="text" name="academic_year" id="edit_academic_year" required>
+<input type="date" name="start_date" id="edit_start_date" required>
+<input type="date" name="end_date" id="edit_end_date" required>
+
+<!-- Edit Semester Modal -->
+<div id="editSemesterMessageBox" class="alert d-none mx-3 mt-3" role="alert"></div>
+<input type="hidden" name="semester_id" id="semester_id">
+<input type="text" name="semester_name" id="edit_semester_name" required>
+<input type="text" name="academic_year" id="edit_academic_year" required>
+<input type="date" name="start_date" id="edit_start_date" required>
+<input type="date" name="end_date" id="edit_end_date" required>
