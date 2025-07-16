@@ -1,76 +1,54 @@
 <?php
+require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    echo generateResponse(false, 'Not logged in');
-    exit();
-}
+header('Content-Type: application/json');
 
-// Get user's role
-$role = $_SESSION['role'];
+$data = json_decode(file_get_contents('php://input'), true);
+$action = $data['action'] ?? '';
 
-// Handle different actions
-switch ($_GET['action'] ?? '') {
-    case 'get_students':
-        if ($role !== 'faculty') {
-            echo generateResponse(false, 'Unauthorized');
-            exit();
-        }
-        
-        $courseId = intval($_GET['course_id'] ?? 0);
-        $semesterId = intval($_GET['semester_id'] ?? 0);
-        
-        if (!$courseId || !$semesterId) {
-            echo generateResponse(false, 'Invalid parameters');
-            exit();
-        }
-        
-        // Get students enrolled in the course's program
-        $students = $pdo->query("
-            SELECT s.*, p.Programme_name
-            FROM students s
-            JOIN student_has_programs shp ON s.ID = shp.student_id
-            JOIN programs p ON shp.program_id = p.program_id
-            JOIN programs_has_courses pc ON p.program_id = pc.program_id
-            WHERE pc.course_id = $courseId
-            AND pc.semester_id = $semesterId
-            ORDER BY s.Student_name
-        ")->fetchAll();
-        
-        echo generateResponse(true, 'Students fetched successfully', $students);
-        break;
-        
-    case 'get_attendance':
-        if ($role !== 'student') {
-            echo generateResponse(false, 'Unauthorized');
-            exit();
-        }
-        
-        $studentId = $_SESSION['user_id'];
-        $courseId = intval($_GET['course_id'] ?? 0);
-        $semesterId = intval($_GET['semester_id'] ?? 0);
-        
-        if (!$courseId || !$semesterId) {
-            echo generateResponse(false, 'Invalid parameters');
-            exit();
-        }
-        
-        // Get attendance records for the student
-        $attendance = $pdo->query("
-            SELECT a.date, a.present
-            FROM attendance_has_courses a
-            WHERE a.student_id = $studentId
-            AND a.course_id = $courseId
-            AND a.semester_id = $semesterId
-            ORDER BY a.date DESC
-        ")->fetchAll();
-        
-        echo generateResponse(true, 'Attendance fetched successfully', $attendance);
-        break;
-        
-    default:
-        echo generateResponse(false, 'Invalid action');
-        break;
+try {
+    switch ($action) {
+        case 'mark_attendance':
+            $student_id = intval($data['student_id']);
+            $program_id = intval($data['program_id']);
+            $semester_id = intval($data['semester_id']);
+            $course_id = intval($data['course_id']);
+            $date = $data['attendance_date'];
+
+            // Insert attendance session if not exists
+            $stmt = $pdo->prepare("SELECT attendance_id FROM attendance WHERE Attendance_date = ?");
+            $stmt->execute([$date]);
+            $attendance_id = $stmt->fetchColumn();
+            
+            if (!$attendance_id) {
+                $pdo->prepare("INSERT INTO attendance (Attendance_date) VALUES (?)")
+                    ->execute([$date]);
+                $attendance_id = $pdo->lastInsertId();
+            }
+
+            // Link attendance to semester & course
+            $pdo->prepare("INSERT IGNORE INTO attendance_has_semester (attendance_id, semester_id) VALUES (?, ?)")
+                ->execute([$attendance_id, $semester_id]);
+            $pdo->prepare("INSERT IGNORE INTO attendance_has_courses (attendance_id, course_id) VALUES (?, ?)")
+                ->execute([$attendance_id, $course_id]);
+
+            // Mark student
+            $pdo->prepare("INSERT IGNORE INTO attendance_has_student (attendance_id, student_ID, user_id) VALUES (?, ?, ?)")
+                ->execute([$attendance_id, $student_id, 0]);
+
+            // Get student name
+            $stmt = $pdo->prepare("SELECT Student_name FROM student WHERE ID = ?");
+            $stmt->execute([$student_id]);
+            $student_name = $stmt->fetchColumn();
+
+            echo json_encode(['success' => true, 'student_name' => $student_name]);
+            break;
+
+        default:
+            throw new Exception("Invalid action");
+    }
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }

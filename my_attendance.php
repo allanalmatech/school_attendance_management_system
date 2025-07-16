@@ -1,179 +1,107 @@
 <?php
 require_once 'includes/header.php';
 require_once 'includes/functions.php';
-
-requireRole('student');
-
-// Get current user's student ID
-$studentId = $_SESSION['user_id'];
-
-// Get current semester (assuming only one active semester)
-$currentSemester = $pdo->query("
-    SELECT s.*
-    FROM semester s
-    WHERE s.status = 1
-    ORDER BY s.start_date DESC
-    LIMIT 1
-")->fetch();
-
-if (!$currentSemester) {
-    die('No active semester found');
-}
-
-// Get student's enrolled programs
-$programs = $pdo->query("
-    SELECT p.*, shp.enrollment_date
-    FROM programs p
-    JOIN student_has_programs shp ON p.program_id = shp.program_id
-    WHERE shp.student_id = $studentId
-")->fetchAll();
-
-// Get student's courses for the current semester
-$courses = $pdo->query("
-    SELECT c.*, pc.semester_id, p.Programme_name
-    FROM courses c
-    JOIN programs_has_courses pc ON c.course_id = pc.course_id
-    JOIN programs p ON pc.program_id = p.program_id
-    JOIN student_has_programs shp ON p.program_id = shp.program_id
-    WHERE shp.student_id = $studentId
-    AND pc.semester_id = " . $currentSemester['semester_id'] . "
-    ORDER BY p.Programme_name, c.Course_name
-")->fetchAll();
-
-// Calculate attendance percentage for each course
-$attendanceData = [];
-foreach ($courses as $course) {
-    $totalClasses = $pdo->query("
-        SELECT COUNT(*) as total
-        FROM attendance_has_courses
-        WHERE course_id = " . $course['course_id'] . "
-        AND semester_id = " . $course['semester_id'] . "
-    ")->fetch()['total'];
-    
-    $presentClasses = $pdo->query("
-        SELECT COUNT(*) as present
-        FROM attendance_has_courses
-        WHERE course_id = " . $course['course_id'] . "
-        AND semester_id = " . $course['semester_id'] . "
-        AND student_id = $studentId
-        AND present = 1
-    ")->fetch()['present'];
-    
-    $attendanceData[$course['course_id']] = [
-        'total' => $totalClasses,
-        'present' => $presentClasses,
-        'percentage' => $totalClasses > 0 ? round(($presentClasses / $totalClasses) * 100) : 0
-    ];
-}
+requireRole('faculty');
 ?>
 
 <div class="container mt-4">
-    <div class="row">
-        <div class="col-md-12">
-            <h2>My Attendance</h2>
-            <hr>
-        </div>
-    </div>
+    <h2>Mark Attendance (QR Scan)</h2>
+    <hr>
 
-    <!-- Attendance Summary -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h3>Attendance Summary</h3>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Program</th>
-                            <th>Course</th>
-                            <th>Classes Attended</th>
-                            <th>Total Classes</th>
-                            <th>Attendance %</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($courses as $course): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($course['Programme_name']); ?></td>
-                                <td><?php echo htmlspecialchars($course['Course_name']); ?></td>
-                                <td><?php echo $attendanceData[$course['course_id']]['present']; ?></td>
-                                <td><?php echo $attendanceData[$course['course_id']]['total']; ?></td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="progress me-2" style="width: 150px;">
-                                            <div class="progress-bar" 
-                                                 role="progressbar" 
-                                                 style="width: <?php echo $attendanceData[$course['course_id']]['percentage']; ?>%;"
-                                                 aria-valuenow="<?php echo $attendanceData[$course['course_id']]['percentage']; ?>"
-                                                 aria-valuemin="0" 
-                                                 aria-valuemax="100">
-                                                <?php echo $attendanceData[$course['course_id']]['percentage']; ?>%
-                                            </div>
-                                        </div>
-                                        <span><?php echo $attendanceData[$course['course_id']]['percentage']; ?>%</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <?php 
-                                    $percentage = $attendanceData[$course['course_id']]['percentage'];
-                                    if ($percentage >= 75) {
-                                        echo '<span class="badge bg-success">Good</span>';
-                                    } elseif ($percentage >= 50) {
-                                        echo '<span class="badge bg-warning">Needs Improvement</span>';
-                                    } else {
-                                        echo '<span class="badge bg-danger">Poor</span>';
-                                    }
-                                    ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+    <!-- Select session details -->
+    <form id="sessionForm" class="mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <label>Program</label>
+                <select name="program_id" class="form-control" required>
+                    <!-- populate with DB -->
+                    <option value="1">Program A</option>
+                    <option value="2">Program B</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Semester</label>
+                <select name="semester_id" class="form-control" required>
+                    <option value="1">2023 Semester 1</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Course</label>
+                <select name="course_id" class="form-control" required>
+                    <option value="1">Math 101</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Date</label>
+                <input type="date" name="attendance_date" class="form-control" value="<?php echo date('Y-m-d'); ?>" required>
             </div>
         </div>
-    </div>
+    </form>
 
-    <!-- Detailed Attendance -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h3>Detailed Attendance Records</h3>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Course</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $attendanceRecords = $pdo->query("
-                            SELECT c.Course_name, a.date, a.present
-                            FROM attendance_has_courses a
-                            JOIN courses c ON a.course_id = c.course_id
-                            WHERE a.student_id = $studentId
-                            AND a.semester_id = " . $currentSemester['semester_id'] . "
-                            ORDER BY a.date DESC
-                        ")->fetchAll();
-                        
-                        foreach ($attendanceRecords as $record):
-                        ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($record['Course_name']); ?></td>
-                                <td><?php echo date('Y-m-d', strtotime($record['date'])); ?></td>
-                                <td>
-                                    <?php if ($record['present'] == 1): ?>
-                                        <span class="badge bg-success">Present</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-danger">Absent</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+    <!-- QR Scanner -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div id="reader" style="width:100%;"></div>
+        </div>
+        <div class="col-md-6">
+            <h4>Marked Present</h4>
+            <ul id="attendanceList" class="list-group"></ul>
         </div>
     </div>
 </div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+let sessionData = {};
+
+document.getElementById('sessionForm').addEventListener('change', function(){
+    const formData = new FormData(this);
+    sessionData = Object.fromEntries(formData);
+});
+
+// Initialize QR scanner
+let scanner = new Html5Qrcode("reader");
+
+Html5Qrcode.getCameras().then(devices => {
+    if (devices && devices.length) {
+        scanner.start(
+            devices[0].id,
+            { fps: 10, qrbox: 250 },
+            onScanSuccess
+        );
+    }
+});
+
+function onScanSuccess(decodedText, decodedResult) {
+    console.log(`QR code scanned: ${decodedText}`);
+
+    if (!sessionData.program_id) {
+        alert('Please select program/semester/course/date first.');
+        return;
+    }
+
+    // Send AJAX to record attendance
+    fetch('api/attendance.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'mark_attendance',
+            student_id: decodedText, // assumes QR code holds student_ID
+            ...sessionData
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const item = document.createElement('li');
+            item.className = 'list-group-item list-group-item-success';
+            item.textContent = `Marked: ${data.student_name}`;
+            document.getElementById('attendanceList').prepend(item);
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
+
+<?php require_once 'includes/footer.php'; ?>
