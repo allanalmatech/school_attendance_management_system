@@ -44,11 +44,12 @@ function deleteData($table, $where, $params = []) {
 }
 
 function generateResponse($success, $message = '', $data = null) {
-    return json_encode([
+    $response = [
         'success' => $success,
         'message' => $message,
         'data' => $data
-    ]);
+    ];
+    return json_encode($response);
 }
 
 function formatDateTime($datetime) {
